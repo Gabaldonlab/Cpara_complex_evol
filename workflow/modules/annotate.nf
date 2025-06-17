@@ -4,7 +4,7 @@ process PSV_ANNOTSNPS {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_annotsnps.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_annotsnps.threads}"
     time params.psv_annotsnps.time
     array params.psv_annotsnps.array_size
     cpus params.psv_annotsnps.threads
@@ -47,62 +47,13 @@ process PSV_ANNOTSNPS {
     """
 }
 
-// Process - PerSVade integrate_CNVs_SVs
-process PSV_INTEGRATE {
-   publishDir "${params.output_path}/sv_integrated", mode: "copy"
-    conda params.conda.psv_env
-
-    executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_integrate.threads}"
-    time params.psv_integrate.time
-    array params.psv_integrate.array_size
-    cpus params.psv_integrate.threads
-    errorStrategy "ignore"
-
-    input:
-    tuple \
-        val(sample_id), \
-        path(reference_file), \
-        path(index), \
-        path(gff), \
-        val(mitochondria), \
-        path(repeats_file), \
-        path(bam), \
-        path(bai), \
-        path(sv_output, stageAs: "svs"), \
-        path(cnv_output, stageAs: "cnvs")
-
-    output:
-    tuple \
-        val(sample_id), \
-        path("${sample_id}")
-
-    script:
-    """
-    echo "Starting PSV_INTEGRATE" `date +%H-%M-%S`
-    python ${params.psv_exe} \
-        integrate_SV_CNV_calls \
-        -o ${sample_id} \
-        -r ${reference_file} \
-        --repeats_file ${repeats_file} \
-        --mitochondrial_chromosome ${mitochondria} \
-        -sbam ${bam} -p 2 \
-        --outdir_callSVs ${sv_output} \
-        --outdir_callCNVs ${cnv_output} \
-        --threads ${task.cpus} \
-        --fraction_available_mem 0.95
-    
-    echo "Finished PSV_INTEGRATE" `date +%H-%M-%S`
-    """
-}
-
 // Process - PerSVade annotate_SVs
 process PSV_ANNOTSVS {
     publishDir "${params.output_path}/annot_svs", mode: "copy"
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_annotsnps.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_annotsnps.threads}"
     time params.psv_annotsnps.time
     array params.psv_annotsnps.array_size
     cpus params.psv_annotsnps.threads

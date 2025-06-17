@@ -33,7 +33,7 @@ process PSV_REPEATS {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_repeats.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_repeats.threads}"
     time params.psv_repeats.time
     array params.psv_repeats.array_size
     cpus params.psv_repeats.threads

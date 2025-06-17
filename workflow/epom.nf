@@ -33,12 +33,12 @@ include {
     BED_VCF_INTERSECT; JLOH_PLOT_VARS
 } from './modules/jloh.nf'
 include {
-    PSV_CALLCNVS; PSV_OPTIMIZE; PSV_CALLSVS; PSV_SVPARAMS
+    PSV_CALLCNVS; PSV_OPTIMIZE; PSV_CALLSVS; PSV_SVPARAMS; PSV_INTEGRATE;
+    PSV_COMPARE
 } from './modules/structural.nf'
 include {
-    PSV_ANNOTSNPS; PSV_INTEGRATE; MERGE_GFFSNP; SNP_PLOT; PSV_ANNOTSVS; MERGE_GFFLOH
+    PSV_ANNOTSNPS; PSV_ANNOTSVS; MERGE_GFFSNP; SNP_PLOT; MERGE_GFFLOH
 } from './modules/annotate.nf'
-
 
 // Channels of raw data
 PooledReads = Channel.fromFilePairs(
@@ -401,6 +401,50 @@ workflow STRUCTURAL {
             .map{ [it[6], it[1], it[2], it[3], it[4], it[5]] }
             .join(Alignments)
         )
+        // Integrate CNVs and SVs
+        IntegratedSvs = PSV_INTEGRATE(RefWithExtras
+            .join(ReferenceGff)
+            .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
+            .map{ [it[6], it[1], it[2], it[3], it[4], it[5]] }
+            .join(Alignments)
+            .join(StrucuturalVariants)
+            .join(CnvCalling)
+        )
+        // Create the channel for the SV path tables
+        SvPathCanme = IntegratedSvs
+            .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+            .filter{ it[2] == "CANME_BP57_mit_BP57" }
+            .map{ it -> "sampleID\toptimize_parameters_outdir\n${it[0]}\t${it[1]}\n" }
+            .collectFile(
+                name: 'sv_paths_table_CANME.tsv',
+                storeDir:"${params.output_path}/sv_background",
+                keepHeader: true,
+                skip: 1
+            )
+            .map{ ["CANME_BP57_mit_BP57", it] }
+        SvPathCanor = IntegratedSvs
+            .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+            .filter{ it[2] == "CANOR_CO90125_mit_MCO471" }
+            .map{ it -> "sampleID\toptimize_parameters_outdir\n${it[0]}\t${it[1]}\n" }
+            .collectFile(
+                name: 'sv_paths_table_CANOR.tsv',
+                storeDir:"${params.output_path}/sv_background",
+                keepHeader: true,
+                skip: 1
+            )
+            .map{ ["CANOR_CO90125_mit_MCO471", it] }
+        // Join channels
+        SvPathTables = SvPathCanme.concat(SvPathCanor)
+        // Create the channel for the comparison tables
+        SvCompTables = Channel.of(
+            ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_background/table_comparisons_CANOR.csv"],
+            ["CANME_BP57_mit_BP57", "${params.output_path}/sv_background/table_comparisons_CANME.csv"]
+        )       
+        // Remove background from SVs
+        SvWoBg = PSV_COMPARE(RefWithExtras
+            .join(SvPathTables)
+            .join(SvCompTables)
+        )
 }
 
 SvOutDirs = Channel.fromPath(
@@ -412,6 +456,7 @@ CnvOutDirs = Channel.fromPath(
     "${params.output_path}/cnv_calling/*", type: 'dir'
     )
     .map{ [it.name, it] }
+    
 LohBlocks = Channel.fromPath(
     "${params.output_path}/jloh_extract/EPOM*wo*wo*bed"
     )
@@ -441,15 +486,7 @@ workflow ANNOTATE {
             .join(ReferenceGff)
         )
         SNP_PLOT(GffSnps)
-        // Integrate CNVs and SVs
-        IntegratedSvs = PSV_INTEGRATE(RefWithExtras
-            .join(ReferenceRepeats)
-            .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
-            .map{ [it[6], it[1], it[2], it[3], it[4], it[5]] }
-            .join(Alignments)
-            .join(SvOutDirs)
-            .join(CnvOutDirs)
-        )
+
         // Save the files for the SV removal of T0
         SvCompareCanor = Alignments
             .join(IntegratedSvs)

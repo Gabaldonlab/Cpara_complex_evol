@@ -4,7 +4,7 @@ process DEPOOL_READS {
     conda params.conda.depool_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.threads.depool}"
+    clusterOptions "-q ${params.queue} -c ${params.threads.depool}"
     time { 30.min * task.attempt }
     errorStrategy "retry"
     array params.array_sizes.depool

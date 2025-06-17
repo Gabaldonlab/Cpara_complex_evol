@@ -4,7 +4,7 @@ process PSV_CALLSNPS {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_callsnps.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_callsnps.threads}"
     time params.psv_callsnps.time
     array params.psv_callsnps.array_size
     cpus params.psv_callsnps.threads
@@ -118,7 +118,6 @@ process SUBSET_SNPS {
     publishDir "${params.output_path}/variant_subset", mode: "copy"
 
     executor "local"
-    //clusterOptions "-q gp_bscls -c ${params.subset_snps.threads}"
     time params.subset_snps.time
     cpus params.subset_snps.threads
     errorStrategy "ignore"
@@ -164,7 +163,6 @@ process SPLIT_VARIANTS{
     publishDir "${params.output_path}/variant_loh", mode: "copy"
 
     executor "local"
-    //clusterOptions "-q gp_bscls -c ${params.subset_snps.threads}"
     time params.subset_snps.time
     cpus params.subset_snps.threads
     errorStrategy "ignore"
@@ -215,7 +213,7 @@ process LOH_VARIANTS{
     
     executor "slurm"
     errorStrategy "ignore"
-    clusterOptions "-q gp_bscls -c ${params.subset_snps.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.subset_snps.threads}"
     time params.subset_snps.time
     array params.jloh_extract.array_size
     cpus params.subset_snps.threads

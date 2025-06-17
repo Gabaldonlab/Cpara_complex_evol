@@ -4,7 +4,7 @@ process JLOH_STATS {
     conda params.conda.jloh_env
    
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.jloh_stats.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.jloh_stats.threads}"
     time params.jloh_stats.time
     array params.jloh_stats.array_size
     cpus params.jloh_stats.threads
@@ -65,7 +65,7 @@ process JLOH_EXTRACT{
     conda params.conda.jloh_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.jloh_extract.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.jloh_extract.threads}"
     time params.jloh_extract.time
     array params.jloh_extract.array_size
     cpus params.jloh_extract.threads

@@ -4,7 +4,7 @@ process PSV_TRIMQC {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_trimqc.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_trimqc.threads}"
     time { params.psv_trimqc.time * task.attempt }
     array params.psv_trimqc.array_size
     cpus params.psv_trimqc.threads
@@ -51,7 +51,7 @@ process PSV_ALIGN {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_align.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_align.threads}"
     time params.psv_align.time
     array params.psv_align.array_size
     cpus params.psv_align.threads

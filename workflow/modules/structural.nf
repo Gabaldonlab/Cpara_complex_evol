@@ -4,7 +4,7 @@ process PSV_CALLCNVS {
     conda params.conda.psv_env_miki
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_callcnvs.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_callcnvs.threads}"
     time params.psv_callcnvs.time
     array params.psv_callcnvs.array_size
     cpus params.psv_callcnvs.threads
@@ -52,7 +52,7 @@ process PSV_OPTIMIZE {
     conda params.conda.psv_env_miki
 
     executor "slurm"
-    clusterOptions "-q gp_bscls"
+    clusterOptions "-q ${params.queue}"
     time params.psv_optimize.time
     array params.psv_optimize.array_size
     cpus params.psv_optimize.threads
@@ -105,7 +105,7 @@ process PSV_SVPARAMS {
     conda params.conda.psv_env_miki
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_svparams.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_svparams.threads}"
     time params.psv_svparams.time
     array params.psv_svparams.array_size
     cpus params.psv_svparams.threads
@@ -150,7 +150,7 @@ process PSV_CALLSVS {
     conda params.conda.psv_env
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_callsvs.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_callsvs.threads}"
     time params.psv_callsvs.time
     array params.psv_callsvs.array_size
     cpus params.psv_callsvs.threads
@@ -192,13 +192,62 @@ process PSV_CALLSVS {
     """
 }
 
+// Process - PerSVade integrate_CNVs_SVs
+process PSV_INTEGRATE {
+   publishDir "${params.output_path}/sv_integrated", mode: "copy"
+    conda params.conda.psv_env
+
+    executor "slurm"
+    clusterOptions "-q ${params.queue} -c ${params.psv_integrate.threads}"
+    time params.psv_integrate.time
+    array params.psv_integrate.array_size
+    cpus params.psv_integrate.threads
+    errorStrategy "ignore"
+
+    input:
+    tuple \
+        val(sample_id), \
+        path(reference_file), \
+        path(index), \
+        path(repeats_file), \
+        val(mitochondria), \
+        path(gff), \
+        path(bam), \
+        path(bai), \
+        path(sv_output, stageAs: "svs"), \
+        path(cnv_output, stageAs: "cnvs")
+
+    output:
+    tuple \
+        val(sample_id), \
+        path("${sample_id}")
+
+    script:
+    """
+    echo "Starting PSV_INTEGRATE" `date +%H-%M-%S`
+    python ${params.psv_exe} \
+        integrate_SV_CNV_calls \
+        -o ${sample_id} \
+        -r ${reference_file} \
+        --repeats_file ${repeats_file} \
+        --mitochondrial_chromosome ${mitochondria} \
+        -sbam ${bam} -p 2 \
+        --outdir_callSVs ${sv_output} \
+        --outdir_callCNVs ${cnv_output} \
+        --threads ${task.cpus} \
+        --fraction_available_mem 0.95
+    
+    echo "Finished PSV_INTEGRATE" `date +%H-%M-%S`
+    """
+}
+
 // Process - PerSVade integrate_several_samples
 process PSV_COMPARE {
     publishDir "${params.output_path}/sv_params", mode: "copy"
     conda params.conda.psv_env_miki
 
     executor "slurm"
-    clusterOptions "-q gp_bscls -c ${params.psv_compare.threads}"
+    clusterOptions "-q ${params.queue} -c ${params.psv_compare.threads}"
     time params.psv_compare.time
     array params.psv_compare.array_size
     cpus params.psv_compare.threads
@@ -211,7 +260,8 @@ process PSV_COMPARE {
         path(index), \
         path(repeats_file), \
         val(mitochondria), \
-        path(sv_tables) 
+        path(sv_tables), \
+        path(comp_table)
 
     output:
     path(reference_id)
