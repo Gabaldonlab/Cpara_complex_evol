@@ -59,20 +59,24 @@ cat("Saving data\n")
 svs_data_canor <- bind_rows(annot_list, .id = "eStrain") %>%
         mutate(cond = conditions_canor[eStrain]) %>%
         # Add Preferred_name from the GFF
-        left_join(gff %>% select(Feature, em_Preferred_name),
+        left_join(gff %>% select(Feature, em_Preferred_name, Start, End),
             by = join_by(Feature == Feature)) %>%
-        # Filter only protein-altering mutations
-        filter(!(Consequence %in% c(
-            "upstream_gene_variant",
-            "downstream_gene_variant",
-            "upstream_gene_variant_BND",
-            "downstream_gene_variant_BND",
-            "synonymous_variant"))) %>%
         # Replace Preferred_name with Feature when empty
         mutate(em_Preferred_name = case_when(
              em_Preferred_name == "-" | is.na(em_Preferred_name) ~ Feature,
              .default = em_Preferred_name
-        ))
+        )) %>% 
+        mutate(SVtype = sapply(strsplit(X.Uploaded_variation, "\\|"), "[[", 1)) %>%
+        mutate(chromosome = sapply(strsplit(Location, ":"), "[[", 1)) %>%
+        mutate(positions = sapply(strsplit(Location, ":"), "[[", 2)) %>%
+        mutate(start_pos = as.integer(sapply(strsplit(positions, "-"), "[[", 1))) %>%
+        mutate(end_pos = as.integer(sapply(positions, FUN = function(pos){
+            if (grepl("-", pos)) {
+                strsplit(pos, "-")[[1]][2]
+            } else {
+                pos
+            }
+        })))
 
 write.csv(
     svs_data_canor,

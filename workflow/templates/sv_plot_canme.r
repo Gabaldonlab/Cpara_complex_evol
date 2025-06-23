@@ -5,22 +5,20 @@ library(tidyverse)
 source("scripts/workflow/templates/canme_strains.r")
 
 # Load data
-snp_data_canme <- read.csv("results/annot_plots/svs_data_canme.csv")
+svs_data_canme <- read.csv("results/annot_plots/svs_data_canme.csv")
 
 cat("Preparing data\n")
 # Generate the data for the plots
-molten_data <- snp_data_canme %>%
-    mutate(SVtype = sapply(strsplit(X.Uploaded_variation, "\\|"), "[[", 1)) %>%
-    mutate(chromosome = sapply(strsplit(Location, ":"), "[[", 1)) %>%
-    mutate(positions = sapply(strsplit(Location, ":"), "[[", 2)) %>%
-    mutate(start_pos = as.integer(sapply(strsplit(positions, "-"), "[[", 1))) %>%
-    mutate(end_pos = as.integer(sapply(positions, FUN = function(pos){
-        if (grepl("-", pos)) {
-            strsplit(pos, "-")[[1]][2]
-        } else {
-            pos
-        }
-    }))) %>%
+molten_data <- svs_data_canme %>%
+    # Filter only protein-altering mutations
+    filter(!(Consequence %in% c(
+        "upstream_gene_variant",
+        "downstream_gene_variant",
+        "upstream_gene_variant_BND",
+        "downstream_gene_variant_BND",
+        "synonymous_variant"))) %>%
+    # Filter CNVs based on coverage
+    
     mutate(eStrain = factor(eStrain,
         levels = order_eStrains_canme)) %>%
     mutate(strain = case_when(

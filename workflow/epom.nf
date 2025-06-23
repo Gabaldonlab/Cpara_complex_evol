@@ -34,7 +34,7 @@ include {
 } from './modules/jloh.nf'
 include {
     PSV_CALLCNVS; PSV_OPTIMIZE; PSV_CALLSVS; PSV_SVPARAMS; PSV_INTEGRATE;
-    PSV_COMPARE
+    PSV_COMPARE; CNV_FILTER; PSV_SVPARAMS as PSV_MANPARAMS
 } from './modules/structural.nf'
 include {
     PSV_ANNOTSNPS; PSV_ANNOTSVS; MERGE_GFFSNP; SNP_PLOT; MERGE_GFFLOH
@@ -312,6 +312,11 @@ workflow LOH {
         )
 }
 
+CnvCalling = Channel.fromPath(
+    "${params.output_path}/cnv_calling/*", type: 'dir'
+    )
+    .map{ [it.name, it] }
+
 // Workflow for structural variants
 workflow STRUCTURAL {
     main:
@@ -320,12 +325,13 @@ workflow STRUCTURAL {
             .join(ReferenceRepeats)
             .join(Mitochondria)
         // Do the CNV calling
-        CnvCalling = PSV_CALLCNVS(RefWithExtras
-            .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
-            .map{ [it[5], it[1], it[2], it[3], it[4]] }
-            .join(FilteredReads)
-            .join(Alignments)
-        )
+        // CnvCalling = PSV_CALLCNVS(RefWithExtras
+        //     .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
+        //     .map{ [it[5], it[1], it[2], it[3], it[4]] }
+        //     .join(FilteredReads)
+        //     .join(Alignments)
+        // )
+        CnvFiltered = CNV_FILTER(CnvCalling)
         // Optimise parameters for the SVs
         OptimizedParameters = PSV_OPTIMIZE(RefWithExtras
             .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
@@ -393,6 +399,43 @@ workflow STRUCTURAL {
             ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_params/opt_params_manual_CANOR.json"],
             ["CANME_BP57_mit_BP57", "${params.output_path}/sv_params/opt_params_manual_CANME.json"]
         )
+        // Check the manually chosen parameters
+        // These channels generate the files for the parameters, but they need to be later edited manually
+        // ManJsonCanor = OptimizedParameters
+        //     .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+        //     .filter{ it[3] == "CANOR_CO90125_mit_MCO471" }
+        //     .map{ it -> "parameterID\tparameters_json\n${it[0]}\t${params.output_path}/sv_params/opt_params_manual_CANOR.json\n" }
+        //     .collectFile(
+        //         name: 'manual_parameters_CANOR.tsv',
+        //         storeDir:"${params.output_path}/sv_params",
+        //         keepHeader: true,
+        //         skip: 1
+        //     )
+        //     .map{ ["CANOR_CO90125_mit_MCO471", it] }
+        // ManJsonCanme = OptimizedParameters
+        //     .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+        //     .filter{ it[3] == "CANME_BP57_mit_BP57" }
+        //     .map{ it -> "parameterID\tparameters_json\n${it[0]}\t${params.output_path}/sv_params/opt_params_manual_CANME.json\n" }
+        //     .collectFile(
+        //         name: 'manual_parameters_CANME.tsv',
+        //         storeDir:"${params.output_path}/sv_params",
+        //         keepHeader: true,
+        //         skip: 1
+        //     )
+        //     .map{ ["CANME_BP57_mit_BP57", it] }
+        // // Create the channel for those files
+        // ManJson = ManJsonCanor.concat(ManJsonCanme)
+        // This channel contains the files above, but after a manual modification
+        ManJson = Channel.of(
+            ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_params/manual_parameters_CANOR.csv"],
+            ["CANME_BP57_mit_BP57", "${params.output_path}/sv_params/manual_parameters_CANME.csv"]
+        )  
+        // Combine everything for the SV parameter analysis
+        ManSvParams = RefWithExtras
+            .join(ManJson)
+            .join(OptDir)
+        // Run the analysis of the manual SV parameters
+        PSV_MANPARAMS(ManSvParams)
         // Combine the references with the manually chosen parameters
         // and join with the samples to do the SV calling
         StrucuturalVariants = PSV_CALLSVS(RefWithExtras
@@ -408,13 +451,15 @@ workflow STRUCTURAL {
             .map{ [it[6], it[1], it[2], it[3], it[4], it[5]] }
             .join(Alignments)
             .join(StrucuturalVariants)
-            .join(CnvCalling)
+            .join(CnvFiltered)
         )
         // Create the channel for the SV path tables
         SvPathCanme = IntegratedSvs
+            .join(StrucuturalVariants)
+            .join(Alignments)
             .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
-            .filter{ it[2] == "CANME_BP57_mit_BP57" }
-            .map{ it -> "sampleID\toptimize_parameters_outdir\n${it[0]}\t${it[1]}\n" }
+            .filter{ it[5] == "CANME_BP57_mit_BP57" }
+            .map{ it -> "sampleID\tintegrate_SV_CNV_calls_outdir\tcall_SVs_outdir\tsorted_bam\n${it[0]}\t${it[1]}\t${it[2]}\t${it[3]}\n" }
             .collectFile(
                 name: 'sv_paths_table_CANME.tsv',
                 storeDir:"${params.output_path}/sv_background",
@@ -423,9 +468,11 @@ workflow STRUCTURAL {
             )
             .map{ ["CANME_BP57_mit_BP57", it] }
         SvPathCanor = IntegratedSvs
+            .join(StrucuturalVariants)
+            .join(Alignments)
             .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
-            .filter{ it[2] == "CANOR_CO90125_mit_MCO471" }
-            .map{ it -> "sampleID\toptimize_parameters_outdir\n${it[0]}\t${it[1]}\n" }
+            .filter{ it[5] == "CANOR_CO90125_mit_MCO471" }
+            .map{ it -> "sampleID\tintegrate_SV_CNV_calls_outdir\tcall_SVs_outdir\tsorted_bam\n${it[0]}\t${it[1]}\t${it[2]}\t${it[3]}\n" }
             .collectFile(
                 name: 'sv_paths_table_CANOR.tsv',
                 storeDir:"${params.output_path}/sv_background",
@@ -437,8 +484,8 @@ workflow STRUCTURAL {
         SvPathTables = SvPathCanme.concat(SvPathCanor)
         // Create the channel for the comparison tables
         SvCompTables = Channel.of(
-            ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_background/table_comparisons_CANOR.csv"],
-            ["CANME_BP57_mit_BP57", "${params.output_path}/sv_background/table_comparisons_CANME.csv"]
+            ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_background/table_comparisons_canor.csv"],
+            ["CANME_BP57_mit_BP57", "${params.output_path}/sv_background/table_comparisons_canme.csv"]
         )       
         // Remove background from SVs
         SvWoBg = PSV_COMPARE(RefWithExtras
@@ -486,7 +533,6 @@ workflow ANNOTATE {
             .join(ReferenceGff)
         )
         SNP_PLOT(GffSnps)
-
         // Save the files for the SV removal of T0
         SvCompareCanor = Alignments
             .join(IntegratedSvs)

@@ -1,6 +1,5 @@
-// Process - PerSVade call_small_vars
+// Process - PerSVade call_CNVs
 process PSV_CALLCNVS {
-    publishDir "${params.output_path}/cnv_calling", mode: "copy"
     conda params.conda.psv_env_miki
 
     executor "slurm"
@@ -43,6 +42,33 @@ process PSV_CALLCNVS {
         --fraction_available_mem 0.95
 
     echo "Finished PSV_CALLCNVS" `date +%H-%M-%S`
+    """
+}
+
+// Process - Filter CNV calling based on coverage
+process CNV_FILTER {
+    executor "local"
+    
+    input:
+    tuple \
+        val(sample_id), \
+        path(cnv_outdir)
+
+    output:
+    tuple \
+        val(sample_id), \
+        path(sample_id)
+
+    script:
+    """
+    echo "Starting CNV_FILTER" `date +%H-%M-%S`
+
+    mv ${sample_id}/final_CNVcalling.tab ${sample_id}/unfiltered_final_CNVcalling.tab
+    Rscript ${projectDir}/templates/cnv_covfilt.r \
+        ${params.cnv_filter.max_del_cov} ${params.cnv_filter.min_dup_cov}
+    mv final_CNVcalling.tab ${sample_id}/
+
+    echo "Finished CNV_FILTER" `date +%H-%M-%S`
     """
 }
 
@@ -199,10 +225,11 @@ process PSV_INTEGRATE {
 
     executor "slurm"
     clusterOptions "-q ${params.queue} -c ${params.psv_integrate.threads}"
-    time params.psv_integrate.time
+    time { params.psv_integrate.time * task.attempt }
     array params.psv_integrate.array_size
     cpus params.psv_integrate.threads
-    errorStrategy "ignore"
+    errorStrategy "retry"
+    maxRetries 2
 
     input:
     tuple \
@@ -243,15 +270,16 @@ process PSV_INTEGRATE {
 
 // Process - PerSVade integrate_several_samples
 process PSV_COMPARE {
-    publishDir "${params.output_path}/sv_params", mode: "copy"
+    publishDir "${params.output_path}/sv_background", mode: "copy"
     conda params.conda.psv_env_miki
 
     executor "slurm"
     clusterOptions "-q ${params.queue} -c ${params.psv_compare.threads}"
-    time params.psv_compare.time
+    time { params.psv_compare.time * task.attempt }
     array params.psv_compare.array_size
     cpus params.psv_compare.threads
-    errorStrategy "ignore"
+    errorStrategy "retry"
+    maxRetries 3
 
     input:
     tuple \
@@ -274,6 +302,7 @@ process PSV_COMPARE {
         integrate_several_samples \
         -o ${reference_id} \
         --paths_table ${sv_tables} \
+        --table_comparisons ${comp_table} \
         -r ${reference_file} \
         -mchr ${mitochondria} \
         --repeats_file ${repeats_file} \
