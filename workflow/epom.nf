@@ -210,30 +210,35 @@ workflow LOH {
             .join(Alignments)
             .join(Variants2Pass)
             .join(JlohStatsParsed) )
-        // Match with clade
-        JlohWithClade = JlohExtract.map{ [it[0], it[1]] }
+        // Merge uncalled and LOH regions used as background
+        LohWithUnc = MERGE_BEDS(JlohExtract.map{ [it[0], it[1], it[4]] })
+        // Match with clade and split the T0 and YPD
+        UncWithClade = LohWithUnc
             .combine(Metadata.map{ [it[0], it[1], it[4]] }, by: 0)
-        // Separate T0, YPD and evolved
-        T0JlohBeds = JlohWithClade.filter{ it[2] == "T0" }
-        YpdJlohBeds = JlohWithClade.filter{ it[2] == "Y" }
-        EvolvedJlohBeds = JlohWithClade
-            .filter{ it[2] != "T0" && it[2] != "Y"}
-        // Merge uncalled and LOH regions in T0
-        T0JlohUncalled = MERGE_BEDS(T0JlohBeds)
+        T0JlohUnc = UncWithClade.filter{ it[2] == "T0" }
+        YpdJlohUnc = UncWithClade.filter{ it[2] == "Y" }
+        // Separate the evolved strains
+        EvolvedJlohBeds = JlohExtract
+            .map{ [it[0], it[1]] }
+            .join(LohWithUnc)
+            .combine(Metadata.map{ [it[0], it[1], it[4]] }, by: 0)
+            .filter{ it[3] != "T0" && it[3] != "Y"}
+            .map{ [it[0], it[1], it[2], it[4], it[3]] }
         // Remove background matching T0 by clade
-        EvolvedMatchT0 = EvolvedJlohBeds
-            .combine(T0JlohUncalled, by: 3)
-            .map{ [it[1], it[2], it[4], it[5]] }
-        EvolvedWoT0 = BED_INTERSECT_T0(EvolvedMatchT0)
+        EvolvedWoT0 = BED_INTERSECT_T0(EvolvedJlohBeds
+            .combine(T0JlohUnc, by: 3)
+            .map{ [it[1], it[2], it[3], it[5], it[6]] })
         // Remove background matching YPD by clade
-        EvolvedWoT0AndClade = EvolvedWoT0
-            .combine(Metadata.map{ [it[0], it[1], it[4]] }, by: 0)
-        EvolvedMatchYPD = EvolvedWoT0AndClade
-            .combine(YpdJlohBeds, by: 3)
-            .map{ [it[1], it[2], it[4], it[5]] }
-        EvolvedWoYPD = BED_INTERSECT_YPD(EvolvedMatchYPD)
+        // EvolvedWoYPD = BED_INTERSECT_YPD(EvolvedWoT0
+        //     .join(LohWithUnc)
+        //     .combine(Metadata.map{ [it[0], it[4]] }, by: 0)
+        //     .combine(YpdJlohUnc, by: 3)
+        //     .map{ [it[1], it[2], it[3], it[5], it[6]] })
         // Plot LOH
-        JLOH_PLOT(JlohExtract
+        JLOH_PLOT(JlohExtract.map{ [it[0], it[1], it[2], it[3]] }
+            // Substitute all LOH with the LOH without background
+            .join(EvolvedWoT0)
+            .map{ [it[0], it[4], it[2], it[3]] }
             // Add reference and clade ids
             .combine(Metadata.map{ [it[0], it[5], it[4]] }, by: 0)
             .map{ [it[4], it[5], [it[1], it[2], it[3]]] }
@@ -293,7 +298,7 @@ workflow LOH {
         VariantsNewVcf = DECOMPRESS_NEW(VariantsNew)
         SPLIT_NEW(VariantsNewVcf)
         VarintsNewHom = DECOMPRESS_NEWHOM(SPLIT_NEW.out.homVars.map{ [it[0], it[1]] })
-        JLOH_PLOT_VARS(JlohExtract
+        JLOH_PLOT_VARS(JlohExtract.map{ [it[0], it[1], it[2], it[3]] }
             // Add reference and clade
             .combine(Metadata.map{ [it[0], it[5], it[4]] }, by: 0)
             // Add new variants and LOH variants for each sample
@@ -533,25 +538,12 @@ workflow ANNOTATE {
             .join(ReferenceGff)
         )
         SNP_PLOT(GffSnps)
-        // Save the files for the SV removal of T0
-        SvCompareCanor = Alignments
-            .join(IntegratedSvs)
-            .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
-            .filter{ it[3] == "CANOR_CO90125_mit_MCO471" }
-            .map{ it -> "sampleID\tsorted_bam\tintegrate_SV_CNV_calls_outdir\n${it[0]}\t${it[1]}\t${it[2]}\n" }
-            .collectFile(
-                name: 'sv_compare_CANOR.tsv',
-                storeDir:"${params.output_path}/sv_compared",
-                keepHeader: true,
-                skip: 1
-            )
-            .map{ ["CANOR_CO90125_mit_MCO471", it] }
         // Annotate integrated SVs
-        AnnotSvs = PSV_ANNOTSVS(RefWithExtras
-            .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
-            .map{ [it[5], it[1], it[2], it[3], it[4]] }
-            .join(IntegratedSvs)
-        )
+        // AnnotSvs = PSV_ANNOTSVS(RefWithExtras
+        //     .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
+        //     .map{ [it[5], it[1], it[2], it[3], it[4]] }
+        //     .join(IntegratedSvs)
+        // )
         // Merge LOH blocks with the GFF
         MERGE_GFFLOH(ReferenceGff
             .combine(Metadata.map{ [it[5], it[0]] }, by: 0)

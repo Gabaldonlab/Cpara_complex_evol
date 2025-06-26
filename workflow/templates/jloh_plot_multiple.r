@@ -8,12 +8,16 @@ reference_id <- args[1]
 # Get files
 loh_blocks <- as.list(list.files(pattern = "LOH_blocks.tsv"))
 het_blocks <- as.list(list.files(pattern = "exp.het_blocks.bed"))
+new_blocks <- list.files(pattern = "wo.*.bed")
+new_blocks <- as.list(new_blocks[file.size(new_blocks) > 0])
 genome_fai <- list.files(pattern = ".fai")
 
 names(loh_blocks) <- sapply(loh_blocks,
-    gsub, pattern = "LOH_blocks.tsv", replacement = "")
+    gsub, pattern = ".LOH_blocks.tsv", replacement = "")
 names(het_blocks) <- sapply(het_blocks,
-    gsub, pattern = "exp.het_blocks.bed", replacement = "")
+    gsub, pattern = ".exp.het_blocks.bed", replacement = "")
+names(new_blocks) <- sapply(new_blocks,
+    gsub, pattern = "_wo.*.bed", replacement = "")
 
 # Read LOH data
 loh_data <- lapply(loh_blocks, FUN = function(file){
@@ -24,6 +28,13 @@ loh_data <- lapply(loh_blocks, FUN = function(file){
 het_data <- lapply(het_blocks, FUN = function(file){
     read.table(file, sep = "\t") %>%
         mutate(V10 = "HET") %>%
+        mutate(V8 = "homo") %>%
+        select(V1, V2, V3, V8, V10)
+}) %>% bind_rows(.id = "sample_id")
+
+new_data <- lapply(new_blocks, FUN = function(file){
+    read.table(file, sep = "\t") %>%
+        mutate(V10 = "NEW") %>%
         mutate(V8 = "homo") %>%
         select(V1, V2, V3, V8, V10)
 }) %>% bind_rows(.id = "sample_id")
@@ -50,6 +61,7 @@ plot <- ggplot(plot_data, aes(
         aes(xmin = 1, xmax = V2),
         fill = "white") +
     geom_rect(aes(fill = V10, alpha = V8)) +
+    geom_rect(data = new_data, aes(ymin = 1, ymax = 1.5), fill = "slateblue") +
     scale_fill_manual(
         values = c("firebrick", "dodgerblue2", "#fffd87"),
         limits = c("REF", "ALT", "HET")

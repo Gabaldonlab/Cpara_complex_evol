@@ -112,7 +112,7 @@ process JLOH_EXTRACT{
 
     # Extract uncalled regions (not LOH or het)
     bedtools subtract \
-        -a ${reference_file.simpleName}.bed \
+        -a ${reference_file}.bed \
         -b ${sample_id}.LOH_blocks.bed > \
         tmp.uncalled_blocks.bed
 
@@ -163,24 +163,20 @@ process MERGE_BEDS{
     tuple \
         val(sample_id), \
         path(loh_bed), \
-        path(het_bed), \
-        path(loh_tsv), \
         path(uncalled_bed)
 
     output:
     tuple \
         val(sample_id), \
-        path("*.LOH_blocks_and_uncalled.bed"), \
-        path("*.exp.het_blocks.bed"), \
-        path("*.LOH_blocks.tsv"), \
-        path("*.uncalled_blocks.bed")
+        path("*.LOH_blocks_and_uncalled.bed")
 
     script:
     """
-    echo "Starting BED_INTERSECT" `date +%H-%M-%S`
-    bedtools merge \
-        -a ${loh_bed} -b ${uncalled_bed} > ${sample_id}.LOH_blocks_and_uncalled.bed
-    echo "Finished BED_INTERSECT" `date +%H-%M-%S`
+    echo "Starting MERGE_BEDS" `date +%H-%M-%S`
+    cat ${loh_bed} ${uncalled_bed} > unsorted_background.bed
+    bedtools sort -i unsorted_background.bed > ${sample_id}.LOH_blocks_and_uncalled.bed
+    rm unsorted_background.bed
+    echo "Finished MERGE_BEDS" `date +%H-%M-%S`
     """  
 }
 
@@ -193,6 +189,7 @@ process BED_INTERSECT{
     tuple \
         val(sample_id), \
         path(bed), \
+        path(bed_uncalled), \
         val(background_id), \
         path(bed_background)
 
@@ -204,8 +201,24 @@ process BED_INTERSECT{
     script:
     """
     echo "Starting BED_INTERSECT" `date +%H-%M-%S`
+    # First merge the bed files to not have split blocks by allele or uncalled
+    bedtools merge -i ${bed_uncalled} > new_LOH_merged.bed
+    bedtools merge -i ${bed_background} > bg_LOH_merged.bed
+    # Get the intersects of the new and background
+    bedtools intersect -wo \
+        -a new_LOH_merged.bed -b bg_LOH_merged.bed > ${bed.simpleName}_isec_${background_id}.bed
+    # Filter out the background blocks that are contained within a new LOH block
+    # as we assume these have had re-LOH
+    # Criteria, retain only background blocks longer or equal to the new LOH block
+    # or that are longer than the overlap (thus they are not contained)
+    # or that share a border with the new LOH (thus we cannot tell if it has expanded)
+    awk 'BEGIN { OFS="\\t" } \$3 - \$2 <= \$6 - \$5 || \$6 - \$5 > \$7 || \$2 == \$5 || \$3 == \$7 { print \$4, \$5, \$6 }' \
+        ${bed.simpleName}_isec_${background_id}.bed > \
+        bg_LOH_filtered.bed
+    # Now do the subtract from the only-LOH file
     bedtools subtract \
-        -a ${bed} -b ${bed_background} > ${bed.simpleName}_wo_${background_id}.bed
+        -a ${bed} \
+        -b bg_LOH_filtered.bed > ${bed.simpleName}_wo_${background_id}.bed
     echo "Finished BED_INTERSECT" `date +%H-%M-%S`
     """    
 }
