@@ -128,28 +128,24 @@ process JLOH_EXTRACT{
 
 // Process - BEDtools LOH stats
 process BED_LOH_STATS{
-    publishDir "${params.output_path}/bed_loh_stats", mode: "copy"
+    publishDir "${params.output_path}/jloh_bedstats", mode: "copy"
     executor "local"
 
     input:
     tuple \
         val(sample_id), \
-        path(loh_bed), \
-        path(loh_tsv), \
-        path(het_bed), \
+        path(bed), \
         path(genome_file)
 
     output:
     tuple \
         val(sample_id), \
-        path("*_stats_het_blocks.tsv"), \
-        path("*_stats_LOH_blocks.tsv")
+        path("*_stats.tsv")
 
     script:
     """
     echo "Starting BED_LOH_STATS" `date +%H-%M-%S`
-    bedtools summary -i ${het_bed} -g ${genome_file} > ${sample_id}_stats_het_blocks.tsv
-    bedtools summary -i ${loh_bed} -g ${genome_file} > ${sample_id}_stats_LOH_blocks.tsv 
+    bedtools summary -i ${bed} -g ${genome_file} > ${sample_id}_${bed.simpleName}_stats.tsv
     echo "Finished BED_LOH_STATS" `date +%H-%M-%S`
     """
 }
@@ -212,7 +208,7 @@ process BED_INTERSECT{
     # Criteria, retain only background blocks longer or equal to the new LOH block
     # or that are longer than the overlap (thus they are not contained)
     # or that share a border with the new LOH (thus we cannot tell if it has expanded)
-    awk 'BEGIN { OFS="\\t" } \$3 - \$2 <= \$6 - \$5 || \$6 - \$5 > \$7 || \$2 == \$5 || \$3 == \$7 { print \$4, \$5, \$6 }' \
+    awk 'BEGIN { OFS="\\t" } \$3 - \$2 <= \$6 - \$5 || \$6 - \$5 > \$7 || \$2 == \$5 || \$3 == \$6 { print \$4, \$5, \$6 }' \
         ${bed.simpleName}_isec_${background_id}.bed > \
         bg_LOH_filtered.bed
     # Now do the subtract from the only-LOH file

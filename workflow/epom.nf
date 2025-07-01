@@ -30,7 +30,7 @@ include {
 include {
     JLOH_STATS; PARSE_JLOHSTATS; JLOH_EXTRACT; JLOH_PLOT; MERGE_BEDS;
     BED_INTERSECT as BED_INTERSECT_T0; BED_INTERSECT as BED_INTERSECT_YPD;
-    BED_VCF_INTERSECT; JLOH_PLOT_VARS
+    BED_VCF_INTERSECT; JLOH_PLOT_VARS; BED_LOH_STATS
 } from './modules/jloh.nf'
 include {
     PSV_CALLCNVS; PSV_OPTIMIZE; PSV_CALLSVS; PSV_SVPARAMS; PSV_INTEGRATE;
@@ -47,6 +47,7 @@ PooledReads = Channel.fromFilePairs(
 )
 Metadata = Channel.fromPath("${params.metadata_path}/estrain_metadata_workflow.tsv")
     .splitCsv( skip: 1, sep: "\t", strip: true )
+    .filter{ !(it[9]) }
 
 References = Channel.fromPath("${params.data_path}/references/*.{fna,fasta,fa}")
     .map{ [it.simpleName, it] }
@@ -88,7 +89,6 @@ IndexedRefereces = References.join(ReferenceIndices)
 workflow DEPOOL {
     main:
         MatchSamplePool = Metadata
-            .filter{ it[9] }
             .map{ [it[7], it[0], it[9], it[10]] }
             .join(PooledReads)
         DEPOOL_READS(MatchSamplePool)
@@ -217,17 +217,30 @@ workflow LOH {
             .combine(Metadata.map{ [it[0], it[1], it[4]] }, by: 0)
         T0JlohUnc = UncWithClade.filter{ it[2] == "T0" }
         YpdJlohUnc = UncWithClade.filter{ it[2] == "Y" }
-        // Separate the evolved strains
+        // Separate T0 for plotting later
+        LohT0 = JlohExtract
+            .map{ [it[0], it[1]] }
+            .combine(Metadata.map{ [it[0], it[1]] }, by: 0)
+            .filter{ it[2] == "T0"}
+            .map{ [it[0], it[1]] }
+        // Separate the evolved and YPD strains
         EvolvedJlohBeds = JlohExtract
             .map{ [it[0], it[1]] }
             .join(LohWithUnc)
             .combine(Metadata.map{ [it[0], it[1], it[4]] }, by: 0)
-            .filter{ it[3] != "T0" && it[3] != "Y"}
+            .filter{ it[3] != "T0"}
             .map{ [it[0], it[1], it[2], it[4], it[3]] }
         // Remove background matching T0 by clade
         EvolvedWoT0 = BED_INTERSECT_T0(EvolvedJlohBeds
             .combine(T0JlohUnc, by: 3)
             .map{ [it[1], it[2], it[3], it[5], it[6]] })
+        // Get statistics for the LOH blocks
+        BED_LOH_STATS(EvolvedWoT0
+            .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+            .map{ [it[2], it[0], it[1]] }
+            .combine(ReferenceIndices.map{ [it[0], it[1][6]] }, by: 0)
+            .map{ [it[1], it[2], it[3]] }
+            )
         // Remove background matching YPD by clade
         // EvolvedWoYPD = BED_INTERSECT_YPD(EvolvedWoT0
         //     .join(LohWithUnc)
@@ -237,7 +250,7 @@ workflow LOH {
         // Plot LOH
         JLOH_PLOT(JlohExtract.map{ [it[0], it[1], it[2], it[3]] }
             // Substitute all LOH with the LOH without background
-            .join(EvolvedWoT0)
+            .join(EvolvedWoT0.concat(LohT0))
             .map{ [it[0], it[4], it[2], it[3]] }
             // Add reference and clade ids
             .combine(Metadata.map{ [it[0], it[5], it[4]] }, by: 0)
@@ -510,7 +523,7 @@ CnvOutDirs = Channel.fromPath(
     .map{ [it.name, it] }
     
 LohBlocks = Channel.fromPath(
-    "${params.output_path}/jloh_extract/EPOM*wo*wo*bed"
+    "${params.output_path}/jloh_extract/EPOM*wo_EPOM_T0_{5,6,7,8,9,10,11,12}.bed"
     )
     .map{ [it.name.split("_")[0..2].join("_"), it] }
 

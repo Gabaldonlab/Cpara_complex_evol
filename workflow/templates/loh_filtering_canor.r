@@ -101,7 +101,7 @@ molten_loh_genes <- loh_genes_list %>%
     map_df(~ .x, .id = "eStrain") %>%
     mutate(eStrain_fct = factor(eStrain,
         levels = order_eStrain)) %>%
-    mutate(cond = conditions_canor[eStrain_fct]) %>%
+    mutate(cond = conditions_canor[eStrain]) %>%
     mutate(strain = case_when(
         eStrain %in% pa_strains ~ "Co90125",
         eStrain %in% c1_strains ~ "MCO456",
@@ -116,7 +116,7 @@ molten_loh_regions <- loh_region_list %>%
     map_df(~ .x, .id = "eStrain")  %>%
     mutate(eStrain_fct = factor(eStrain,
         levels = order_eStrain)) %>%
-    mutate(cond = conditions_canor[eStrain_fct]) %>%
+    mutate(cond = conditions_canor[eStrain]) %>%
     mutate(strain = case_when(
         eStrain %in% pa_strains ~ "Co90125",
         eStrain %in% c1_strains ~ "MCO456",

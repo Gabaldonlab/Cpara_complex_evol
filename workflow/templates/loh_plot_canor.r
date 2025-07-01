@@ -9,10 +9,15 @@ molten_loh_all <- read.csv("results/annot_plots/loh_data_canor.csv")
 molten_loh_all <- molten_loh_all %>%
     group_by(eStrain, geneID) %>%
     mutate(total_region_length = sum(region_length)) %>%
-    ungroup()
+    ungroup() %>% 
+    # Filter out the strains with whole genome LOH
+    filter(!(eStrain %in% c("EPOM_088_A10G", "EPOM_133_F10A", "EPOM_183_AF10E",
+        "EPOM_229_FinA10A", "EPOM_280_AinF10G"))) %>%
+    # Filter out parentals
+    filter(!(strain %in% c("Co90125", "SY36")))
 
 # Plot
-plot_loh_all <- ggplot(molten_loh_all, #%>% 
+plot_loh_all <- ggplot(molten_loh_all,
     #filter(total_region_length / gene_length > 0.8),
     aes(
         x = eStrain, y = reorder(Preferred_name, rev(start)),
@@ -52,7 +57,7 @@ plot_loh_selected <- ggplot(loh_selected_data,
         fill = allele
     )) +
     geom_tile(colour = "gray70") +
-    facet_grid(. ~ strain, scales = "free", space = "free") +
+    facet_grid(. ~ cond, scales = "free", space = "free") +
     theme_bw() +
     theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1),
@@ -86,7 +91,7 @@ plot_loh_paperplot <- ggplot(loh_paperplot_data,
         fill = allele
     )) +
     geom_tile(colour = "gray70") +
-    #facet_grid(. ~ strain, scales = "free", space = "free") +
+    facet_grid(. ~ cond, scales = "free", space = "free") +
     theme_bw() +
     theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
