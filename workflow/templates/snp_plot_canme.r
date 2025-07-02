@@ -1,12 +1,10 @@
 # Set environment
 library(tidyverse)
-
-# Source the script to set the environment
-args <- commandArgs(trailingOnly = TRUE)
-source(args[1])
+setwd("/gpfs/projects/bsc40/current/aredondo/evolved_hybrids/EPOM_workflow")
+source("scripts/workflow/templates/canme_strains.r")
 
 # Load data
-snp_data_canme <- read.csv("snp_data_canme.csv")
+snp_data_canme <- read.csv("results/annot_plots/snp_data_canme.csv")
 
 cat("Plotting\n")
 # Generate a plot of mutations in genes
@@ -63,7 +61,7 @@ mutated_gene_plot <- ggplot(
         subtitle = "All annotated genes",
         x = "Strain", y = "Gene")
 
-ggsave("canme_all_mutations.pdf", mutated_gene_plot,
+ggsave("results/annot_plots/canme_all_mutations.pdf", mutated_gene_plot,
     width = 5, height = 14, limitsize = FALSE)
 
 # Generate plot only with the selected genes
@@ -76,10 +74,15 @@ select_gene_plot <- ggplot(
     aes(x = eStrain,
         y = snp,
         fill = Consequence,
+        colour = GT,
         alpha = switch)) +
-    geom_tile(colour = "gray70") +
+    geom_tile() +
     scale_alpha_manual(
         values = c("new" = 1, "inherited" = 0.1, "reverted" = 0.5),
+        na.translate = FALSE
+    ) +
+    scale_colour_manual(
+        values = c("0/1" = "white", "1/1" = "black"),
         na.translate = FALSE
     ) +
     facet_grid(em_Preferred_name ~ cond, scales = "free", space = "free") +
@@ -87,12 +90,12 @@ select_gene_plot <- ggplot(
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
         strip.text.y = element_text(angle = 0),
         legend.position = "bottom") +
-    guides(fill = guide_legend(ncol = 2)) +
+    guides(fill = guide_legend(ncol = 1), alpha = guide_legend(ncol = 1) ) +
     labs(title = "Protein-altering variants in evolved hybrids",
         subtitle = "Selected genes",
         x = "Strain", y = "Mutation")
 
-ggsave("canme_selected_mutations.pdf", select_gene_plot,
+ggsave("results/annot_plots/canme_selected_mutations.pdf", select_gene_plot,
     width = 6, height = 7, limitsize = FALSE)
 
 # Extract data for Vlad's lollipop plot
@@ -100,7 +103,7 @@ lp_data <- molten_data %>%
     # Select genes of interest
     filter(em_Preferred_name %in% c("FKS1", "MRR1")) %>%
     # Mark inherited/new/reverted SNPs in switch conditions
-    group_by(X.Uploaded_variation) %>%
+    group_by(X.Uploaded_variation, eStrain) %>%
     mutate(switch = case_when(
         eStrain %in% switch_eStrains & any(eStrain %in% names(switch_eStrains)) ~ "inherited",
         eStrain %in% names(switch_eStrains) & all(!(eStrain %in% switch_eStrains)) ~ "reverted",
@@ -122,9 +125,9 @@ lp_data <- molten_data %>%
         !(em_Preferred_name == "MRR1" & cond %in% c("A", "FinA"))
     ) %>%
     # Extract relevant columns
-    select(em_Preferred_name, Protein_position, Amino_acids, Consequence) %>%
+    select(eStrain, em_Preferred_name, Protein_position, Amino_acids, Consequence, GT) %>%
     # Cluster to unique snps in any strain
     unique()
 
 # Save
-write.csv(file = "canme_lollipop_data.csv", lp_data, row.names = FALSE)
+write.csv(file = "results/annot_plots/canme_lollipop_data.csv", lp_data, row.names = FALSE)

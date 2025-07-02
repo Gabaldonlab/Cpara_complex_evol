@@ -46,8 +46,8 @@ PooledReads = Channel.fromFilePairs(
     flat: true
 )
 Metadata = Channel.fromPath("${params.metadata_path}/estrain_metadata_workflow.tsv")
-    .splitCsv( skip: 1, sep: "\t", strip: true )
-    .filter{ !(it[9]) }
+    .splitCsv( skip: 1, sep: "\t", strip: true)
+    .filter{ it[8] == "false" }
 
 References = Channel.fromPath("${params.data_path}/references/*.{fna,fasta,fa}")
     .map{ [it.simpleName, it] }
@@ -550,7 +550,7 @@ workflow ANNOTATE {
             .map{ [it[0], it[1].flatten()] }
             .join(ReferenceGff)
         )
-        SNP_PLOT(GffSnps)
+        // deactivated SNP_PLOT(GffSnps)
         // Annotate integrated SVs
         // AnnotSvs = PSV_ANNOTSVS(RefWithExtras
         //     .combine(Metadata.map{ [it[5], it[0]] }, by: 0)

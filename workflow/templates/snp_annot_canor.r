@@ -1,15 +1,14 @@
 # Set environment
 library(tidyverse)
-
-# Source the script to set the environment
-args <- commandArgs(trailingOnly = TRUE)
-source(args[1])
+library(data.table)
+setwd("/gpfs/projects/bsc40/current/aredondo/evolved_hybrids/EPOM_workflow")
+source("scripts/workflow/templates/canor_strains.r")
 
 gff_file <- unlist(list.files(
-    ".",
+    "data/references",
     recursive = TRUE,
     full.names = TRUE,
-    pattern = "gff"
+    pattern = "CANOR.*gff"
 ))
 
 # Load GFF
@@ -71,26 +70,44 @@ for (clade in clades){
     # Choose clade
     clade_vec <- strain_names[[clade]]
 
-    # Select annotation tables in the clade
+    # Select annotation tables and vcf files
     file_vec <- list.files(
-        ".",
+        "results/annot_snps",
         recursive = TRUE,
         full.names = TRUE,
         pattern = "annotated")
+    vcf_files <- list.files(
+        "results/variant_subset",
+        recursive = TRUE,
+        full.names = TRUE,
+        pattern = "wo_.*Y.*.vcf.gz$"        
+    )
+    # Select files
     file_match <- unlist(sapply(
         c(clade_vec, t0_strains[clade], ypd_strains[clade]),
         FUN = function(name){grep(name, file_vec)}
     ))
+    vcf_match <- unlist(sapply(
+        c(clade_vec, t0_strains[clade], ypd_strains[clade]),
+        FUN = function(name){grep(name, vcf_files)}
+    ))
     file_vec <- file_vec[file_match]
-
+    vcf_files <- unique(vcf_files[vcf_match])
     # Load annotation tables
     annot_list <- sapply(file_vec, FUN = function(file){
         read.table(file, sep = "\t", header = TRUE,
             comment.char = "", colClasses = c(Gene = "character"),
     )
     }, simplify = FALSE)
-    names(annot_list) <- gsub("_annotated_variants.tab", "", gsub("\\./", "", names(annot_list)))
-
+    names(annot_list) <- gsub("_annotated_variants.tab", "", gsub(".*/", "", names(annot_list)))
+    # Load vcf files
+    vcf_list <- sapply(vcf_files, FUN = function(file){
+        fread(file, sep = "\t", header = TRUE) %>%
+            rowwise() %>%
+            mutate(GT = strsplit(SAMPLE, ":")[[1]][1])
+    }, simplify = FALSE)
+    names(vcf_list) <- gsub("_variants.*", "", gsub(".*/", "", names(vcf_list)))
+    vcf_data <- vcf_list %>% bind_rows(.id = "eStrain")
     # Prepare data for plotting
     molten_data <- bind_rows(annot_list, .id = "eStrain") %>%
         mutate(snp = paste0(Protein_position, Amino_acids)) %>%
@@ -99,6 +116,9 @@ for (clade in clades){
         mutate(cond = conditions_canor[order_eStrain[eStrain]]) %>%
         mutate(strain = clade) %>%
         mutate(tr_id = paste0("rna-", Feature)) %>%
+        # Add genotype from the vcfs
+        left_join(vcf_data %>% select(ID, GT, eStrain),
+            by = join_by(X.Uploaded_variation == ID, eStrain == eStrain)) %>%
         # Add Preferred_name and locus_tag from the GFF
         left_join(gff %>% select(ID, em_Preferred_name),
             by = join_by(tr_id == ID)) %>%
@@ -114,7 +134,6 @@ for (clade in clades){
             em_Preferred_name == "-" | is.na(em_Preferred_name) ~ locus_tag,
             .default = em_Preferred_name
         ))
-
     # Save the data
     molten_snp_list[[clade]] <- molten_data
 }
@@ -124,6 +143,6 @@ molten_snp_all <- bind_rows(molten_snp_list)
 # Save
 write.csv(
     molten_snp_all,
-    "snp_data_canor.csv",
+    "results/annot_plots/snp_data_canor.csv",
     row.names = FALSE
 )
