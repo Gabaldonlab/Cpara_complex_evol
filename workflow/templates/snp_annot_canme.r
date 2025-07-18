@@ -53,7 +53,13 @@ vcf_files <- list.files(
     full.names = TRUE,
     pattern = "wo_.*Y.*.vcf.gz$"        
 )
-    # Select files
+vcfinloh_files <- list.files(
+    "results/variant_loh",
+    recursive = TRUE,
+    full.names = TRUE,
+    pattern = "wo_.*in_.*.vcf$"        
+)
+# Select files
 file_match <- unlist(sapply(
     c("EPOM_T0_5", "EPOM_T0_6", order_allstrains_canme),
     FUN = function(name){grep(name, file_vec)}
@@ -62,8 +68,15 @@ vcf_match <- unlist(sapply(
     c("EPOM_T0_5", "EPOM_T0_6", order_allstrains_canme),
     FUN = function(name){grep(name, vcf_files)}
 ))
+vcfinloh_match <- unlist(sapply(
+    c("EPOM_T0_5", "EPOM_T0_6", order_allstrains_canme),
+    FUN = function(name){grep(name, vcfinloh_files)}
+))
 file_vec <- file_vec[file_match]
 vcf_files <- unique(vcf_files[vcf_match])
+vcfinloh_files <- unique(vcfinloh_files[vcfinloh_match])
+vcfinloh_files <- vcfinloh_files[file.size(vcfinloh_files) != 0]
+
 # Load annotation tables
 annot_list <- sapply(file_vec, FUN = function(file){
     cat("Reading", file, "\n")
@@ -81,6 +94,21 @@ vcf_list <- sapply(vcf_files, FUN = function(file){
 }, simplify = FALSE)
 names(vcf_list) <- gsub("_variants.*", "", gsub(".*/", "", names(vcf_list)))
 vcf_data <- vcf_list %>% bind_rows(.id = "eStrain")
+
+# Load vcfinloh files
+print(vcfinloh_files)
+if (length(vcfinloh_files) != 0) { 
+    vcfinloh_list <- sapply(vcfinloh_files, FUN = function(file){
+        fread(file, sep = "\t", header = FALSE, col.names =
+            c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLE")) %>%
+            rowwise() %>%
+            mutate(GT = strsplit(SAMPLE, ":")[[1]][1])
+    }, simplify = FALSE)
+    names(vcfinloh_list) <- gsub("_variants.*", "", gsub(".*/", "", names(vcfinloh_list)))
+    vcfinloh_data <- vcfinloh_list %>% bind_rows(.id = "eStrain") %>% mutate(inloh = "inloh")
+} else {
+    vcfinloh_data <- data.frame(ID = character(), GT = character(), eStrain = character(), inloh = character())
+}
 
 cat("Saving data\n")
 # Save the SNP data in a tsv for easier reuse
@@ -102,7 +130,10 @@ snp_data_canme <- bind_rows(annot_list, .id = "eStrain") %>%
         mutate(em_Preferred_name = case_when(
              em_Preferred_name == "-" | is.na(em_Preferred_name) ~ Feature,
              .default = em_Preferred_name
-        ))
+        )) %>%
+        # Add tag to the SNPs in LOH
+        left_join(vcfinloh_data %>% select(ID, eStrain, inloh),
+            by = join_by(X.Uploaded_variation == ID, eStrain == eStrain))
 
 
 

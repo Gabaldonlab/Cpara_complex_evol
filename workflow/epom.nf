@@ -411,7 +411,7 @@ workflow STRUCTURAL {
             .join(OptDir)
         // Run the analysis of SV parameters,
         // after this step you'll have to manually choose the parameters
-        PSV_SVPARAMS(RefSvParams)
+        // PSV_SVPARAMS(RefSvParams)
         // Create the channel for the manually chosen parameters
         OptParamsManual = Channel.of(
             ["CANOR_CO90125_mit_MCO471", "${params.output_path}/sv_params/opt_params_manual_CANOR.json"],
@@ -522,6 +522,11 @@ CnvOutDirs = Channel.fromPath(
     )
     .map{ [it.name, it] }
     
+IntegratedSvs = Channel.fromPath(
+    "${params.output_path}/sv_integrated/*/SV_and_CNV_variant_calling.vcf",
+    )
+    .map{ [it.name.split("/")[0], it] }
+
 LohBlocks = Channel.fromPath(
     "${params.output_path}/jloh_extract/EPOM*wo_EPOM_T0_{5,6,7,8,9,10,11,12}.bed"
     )
@@ -536,27 +541,29 @@ workflow ANNOTATE {
         RefWithExtras = IndexedRefereces
             .join(ReferenceGff)
             .join(Mitochondria)
+        VariantsNewVcf = DECOMPRESS_VCF(VariantsNew)
         // Annotate new SNPs with T0 and YPD removed
         AnnotSnps = PSV_ANNOTSNPS(RefWithExtras
             .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
             .map{ [it[5], it[1], it[2], it[3], it[4]] }
-            .join(DECOMPRESS_VCF(VariantsNew))
+            .join(VariantsNewVcf)
         )
         // Merge PSV annotations with the GFF
-        GffSnps = MERGE_GFFSNP(AnnotSnps
-            .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
-            .map{ [it[2], it[1]] }
-            .groupTuple(by: 0)
-            .map{ [it[0], it[1].flatten()] }
-            .join(ReferenceGff)
-        )
-        // deactivated SNP_PLOT(GffSnps)
-        // Annotate integrated SVs
-        // AnnotSvs = PSV_ANNOTSVS(RefWithExtras
-        //     .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
-        //     .map{ [it[5], it[1], it[2], it[3], it[4]] }
-        //     .join(IntegratedSvs)
+        // GffSnps = MERGE_GFFSNP(AnnotSnps
+        //     .combine(Metadata.map{ [it[0], it[5]] }, by: 0)
+        //     .map{ [it[2], it[1]] }
+        //     .groupTuple(by: 0)
+        //     .map{ [it[0], it[1].flatten()] }
+        //     .join(ReferenceGff)
         // )
+        // Merge acquired SNPs with LOH recombination blocks
+        BED_VCF_INTERSECT(VariantsNewVcf.join(LohBlocks))
+        // Annotate integrated SVs
+        AnnotSvs = PSV_ANNOTSVS(RefWithExtras
+            .combine(Metadata.map{ [it[5], it[0]] }, by: 0)
+            .map{ [it[5], it[1], it[2], it[3], it[4]] }
+            .join(IntegratedSvs)
+        )
         // Merge LOH blocks with the GFF
         MERGE_GFFLOH(ReferenceGff
             .combine(Metadata.map{ [it[5], it[0]] }, by: 0)

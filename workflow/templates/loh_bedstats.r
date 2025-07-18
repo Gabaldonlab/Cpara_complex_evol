@@ -72,14 +72,18 @@ ggsave("results/jloh_plot/loh_bedstats.pdf", plot, width = 9)
 
 # Average LOH in evolved strains
 bedstats_all %>% filter(condition != "Y") %>% pull(ivls_frac_chrom) %>% mean()
+bedstats_all %>% filter(condition != "Y") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition != "Y") %>% nrow()
 # Average LOH in YPD strains
 bedstats_all %>% filter(condition == "Y") %>% pull(ivls_frac_chrom) %>% mean()
+bedstats_all %>% filter(condition == "Y") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition == "Y") %>% nrow()
 # Average LOH in per speices
 bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% pull(ivls_frac_chrom) %>% mean()
+bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% nrow()
 bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% pull(ivls_frac_chrom) %>% mean()
+bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% nrow()
 # Test
 wilcox.test(ivls_frac_chrom ~ evolved, bedstats_all)

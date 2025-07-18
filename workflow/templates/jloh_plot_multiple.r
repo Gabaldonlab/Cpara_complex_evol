@@ -63,7 +63,7 @@ plot <- ggplot(plot_data, aes(
     geom_rect(aes(fill = V10, alpha = V8)) +
     geom_rect(data = new_data, aes(ymin = 1, ymax = 1.5), fill = "slateblue") +
     scale_fill_manual(
-        values = c("firebrick", "dodgerblue2", "#fffd87"),
+        values = c("dodgerblue2", "firebrick", "#fffd87"),
         limits = c("REF", "ALT", "HET")
     ) +
     scale_alpha_manual(

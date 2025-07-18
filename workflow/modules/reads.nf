@@ -8,7 +8,7 @@ process PSV_TRIMQC {
     time { params.psv_trimqc.time * task.attempt }
     array params.psv_trimqc.array_size
     cpus params.psv_trimqc.threads
-    errorStrategy "retry"
+    errorStrategy "ignore"
 
     input:
     tuple \

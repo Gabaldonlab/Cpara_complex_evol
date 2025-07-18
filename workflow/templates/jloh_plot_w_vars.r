@@ -110,13 +110,13 @@ plot <- ggplot() +
         aes(x = V2, y = after_stat(scaled), fill = class, colour = class),
         adjust = 0.25, alpha = 0.3, position = "stack") +
     scale_fill_manual(
-        values = c("firebrick", "dodgerblue2", "#fffd87",
-            "firebrick", "dodgerblue2", "#fffd87"),
+        values = c("dodgerblue2", "firebrick", "#fffd87",
+            "dodgerblue2", "firebrick", "#fffd87"),
         limits = c("REF", "ALT", "HET",
             "het_lost", "het2hom", "het_snps")
     ) +
     scale_colour_manual(
-        values = c("dodgerblue4", "firebrick", "dodgerblue2", "#fffd87"),
+        values = c("dodgerblue4", "dodgerblue2", "firebrick", "#fffd87"),
         limits = c("new_hom", "het_lost", "het2hom", "het_snps")
     ) +
     scale_alpha_manual(

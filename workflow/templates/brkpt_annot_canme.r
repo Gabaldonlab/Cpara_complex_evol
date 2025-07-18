@@ -27,7 +27,6 @@ gff$Feature <- unlist(lapply(lapply(misc, "[[", "ID"), "[", 2))
 # Extract the em_Preferred_name of Misc field
 epn <- lapply(lapply(misc, "[[", "em_Preferred_name"), "[", 2)
 # Remove nulls
-print(epn)
 epn[!(sapply(epn, is.character))] <- NA
 epn <- unlist(epn)
 gff$em_Preferred_name <- epn
@@ -36,10 +35,10 @@ gff$em_Preferred_name <- epn
 gff$Length <- gff$End - gff$Start
 
 # Select annotation tables
-file_vec <- list.files("results/sv_integrated"
+file_vec <- list.files("results/annot_svs",
     recursive = TRUE,
     full.names = TRUE,
-    pattern = "gridss_output.filt"
+    pattern = "annotated_variants.tab"
 )
 # Load annotation tables
 annot_list <- sapply(file_vec, FUN = function(file){
@@ -48,30 +47,39 @@ annot_list <- sapply(file_vec, FUN = function(file){
 }, simplify = FALSE)
 
 names(annot_list) <- sapply(names(annot_list), FUN = function(name){
-    gsub("\\./", "", gsub("/gridss_output.filt.vcf", "", name))
+    gsub(".*/", "", gsub("_annotated_variants.tab", "", name))
 })
 
-cat("Saving data\n")
-# Save the SNP data in a tsv for easier reuse
-snp_data_canme <- bind_rows(annot_list, .id = "eStrain") %>%
-        mutate(snp = paste0(Protein_position, Amino_acids)) %>%
-        mutate(cond = conditions_canme[eStrain]) %>%
+
+# Load the background-removed SVs
+svs_wo_bg <- read.table(
+    "results/sv_background/CANME_BP57_mit_BP57/SVs_changing.tab",
+    sep = "\t", header = TRUE, comment.char = ""
+    ) %>%
+    filter(type_differetial_variant == "gained")
+
+cat("Integrating\n")
+# Inegrate everything
+annotated_svs <- bind_rows(annot_list, .id = "eStrain") %>%
+        # Join the annotations to the background-removed SVs
+        inner_join(svs_wo_bg, by = join_by(
+            X.Uploaded_variation == ID, eStrain == target_sampleID
+        )) %>%
         # Add Preferred_name from the GFF
-        left_join(gff %>% select(Feature, em_Preferred_name),
+        left_join(gff %>% select(
+            Feature, em_Preferred_name, Start, End
+            ),
             by = join_by(Feature == Feature)) %>%
-        # Filter only protein-altering mutations
-        filter(!(Consequence %in% c(
-            "upstream_gene_variant",
-            "downstream_gene_variant",
-            "synonymous_variant"))) %>%
         # Replace Preferred_name with Feature when empty
         mutate(em_Preferred_name = case_when(
              em_Preferred_name == "-" | is.na(em_Preferred_name) ~ Feature,
              .default = em_Preferred_name
-        ))
+        )) %>%
+        select(eStrain, X.Uploaded_variation, Location, Gene, Feature,
+            em_Preferred_name, Consequence, cDNA_position, calling_sampleID)
 
 write.csv(
-    snp_data_canme,
-    "snp_data_canme.csv",
+    annotated_svs,
+    "results/annot_plots/svs_data_canme.csv",
     row.names = FALSE
 )

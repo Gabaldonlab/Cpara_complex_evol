@@ -77,12 +77,24 @@ select_gene_plot <- ggplot(
         colour = GT,
         alpha = switch)) +
     geom_tile() +
+    geom_point(aes(shape = inloh), alpha = 1) +
     scale_alpha_manual(
-        values = c("new" = 1, "inherited" = 0.1, "reverted" = 0.5),
+        values = c("new" = 1, "inherited" = 0.2, "reverted" = 0.5),
         na.translate = FALSE
     ) +
     scale_colour_manual(
         values = c("0/1" = "white", "1/1" = "black"),
+        na.translate = FALSE
+    ) + 
+    scale_shape_manual(
+        values = c("parental" = "P", "haploid" = "H",
+            "inloh" = "L", "wgloh" = "W"),
+        na.translate = FALSE
+    ) +
+    scale_fill_manual(
+        values = c("missense_variant" = "coral", "stop_gained" = "firebrick",
+            "inframe_deletion" = "slateblue", "inframe_insertion" = "cyan",
+            "frameshift_variant" = "goldenrod"),
         na.translate = FALSE
     ) +
     facet_grid(em_Preferred_name ~ cond, scales = "free", space = "free") +
@@ -90,13 +102,16 @@ select_gene_plot <- ggplot(
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
         strip.text.y = element_text(angle = 0),
         legend.position = "bottom") +
-    guides(fill = guide_legend(ncol = 1), alpha = guide_legend(ncol = 1) ) +
+    guides(fill = guide_legend(ncol = 1), colour = guide_legend(ncol = 1),
+        shape = guide_legend(ncol = 1), alpha = guide_legend(ncol = 1) ) +
     labs(title = "Protein-altering variants in evolved hybrids",
         subtitle = "Selected genes",
-        x = "Strain", y = "Mutation")
+        x = "Strain", y = "Mutation",
+        fill = "Consequence", alpha = "Switch", shape = "Recombination",
+        colour = "Genotype")
 
 ggsave("results/annot_plots/canme_selected_mutations.pdf", select_gene_plot,
-    width = 6, height = 7, limitsize = FALSE)
+    width = 8, height = 7, limitsize = FALSE)
 
 # Extract data for Vlad's lollipop plot
 lp_data <- molten_data %>%

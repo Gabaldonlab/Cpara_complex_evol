@@ -271,6 +271,7 @@ selected_genes <- c(
     "UPC2",
     "UME6",
     "TAC1",
+    "SSC1",
     "PDR16",
     "PDR1",
     "MRR1",

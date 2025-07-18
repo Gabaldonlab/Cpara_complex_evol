@@ -82,6 +82,12 @@ for (clade in clades){
         full.names = TRUE,
         pattern = "wo_.*Y.*.vcf.gz$"        
     )
+    vcfinloh_files <- list.files(
+        "results/variant_loh",
+        recursive = TRUE,
+        full.names = TRUE,
+        pattern = "wo_.*in_.*.vcf$"        
+    )
     # Select files
     file_match <- unlist(sapply(
         c(clade_vec, t0_strains[clade], ypd_strains[clade]),
@@ -91,8 +97,14 @@ for (clade in clades){
         c(clade_vec, t0_strains[clade], ypd_strains[clade]),
         FUN = function(name){grep(name, vcf_files)}
     ))
+    vcfinloh_match <- unlist(sapply(
+        c(clade_vec, t0_strains[clade], ypd_strains[clade]),
+        FUN = function(name){grep(name, vcfinloh_files)}
+    ))
     file_vec <- file_vec[file_match]
     vcf_files <- unique(vcf_files[vcf_match])
+    vcfinloh_files <- unique(vcfinloh_files[vcfinloh_match])
+    vcfinloh_files <- vcfinloh_files[file.size(vcfinloh_files) != 0]
     # Load annotation tables
     annot_list <- sapply(file_vec, FUN = function(file){
         read.table(file, sep = "\t", header = TRUE,
@@ -108,6 +120,20 @@ for (clade in clades){
     }, simplify = FALSE)
     names(vcf_list) <- gsub("_variants.*", "", gsub(".*/", "", names(vcf_list)))
     vcf_data <- vcf_list %>% bind_rows(.id = "eStrain")
+    # Load vcfinloh files
+    print(vcfinloh_files)
+    if (length(vcfinloh_files) != 0) { 
+        vcfinloh_list <- sapply(vcfinloh_files, FUN = function(file){
+            fread(file, sep = "\t", header = FALSE, col.names =
+                c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLE")) %>%
+                rowwise() %>%
+                mutate(GT = strsplit(SAMPLE, ":")[[1]][1])
+        }, simplify = FALSE)
+        names(vcfinloh_list) <- gsub("_variants.*", "", gsub(".*/", "", names(vcfinloh_list)))
+        vcfinloh_data <- vcfinloh_list %>% bind_rows(.id = "eStrain") %>% mutate(inloh = "inloh")
+    } else {
+        vcfinloh_data <- data.frame(ID = character(), GT = character(), eStrain = character(), inloh = character())
+    }
     # Prepare data for plotting
     molten_data <- bind_rows(annot_list, .id = "eStrain") %>%
         mutate(snp = paste0(Protein_position, Amino_acids)) %>%
@@ -133,7 +159,11 @@ for (clade in clades){
         mutate(em_Preferred_name = case_when(
             em_Preferred_name == "-" | is.na(em_Preferred_name) ~ locus_tag,
             .default = em_Preferred_name
-        ))
+        )) %>%
+        # Add tag to the SNPs in LOH
+        left_join(vcfinloh_data %>% select(ID, eStrain, inloh),
+            by = join_by(X.Uploaded_variation == ID, eStrain == eStrain))
+    print(head(molten_data))
     # Save the data
     molten_snp_list[[clade]] <- molten_data
 }
