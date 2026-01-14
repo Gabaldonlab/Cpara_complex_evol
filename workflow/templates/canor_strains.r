@@ -11,10 +11,10 @@ pa_strains <- c(
 c1_strains <- c(
     "EPOM_029_Y8A",
     #"EPOM_224_FinA8G", excluded for not having switch
-    "EPOM_079_A8E",
-    "EPOM_271_AinF8E",
     "EPOM_078_A8C",
-    "EPOM_270_AinF8C"
+    "EPOM_270_AinF8C",
+    "EPOM_079_A8E",
+    "EPOM_271_AinF8E"
 )
 
 # Clade 2 strains - IFM48386 strain
@@ -34,14 +34,14 @@ c2_strains <- c(
 # Clade 3 strains - CBS172 strain
 c3_strains <- c(
     "EPOM_037_Y10A",
-    "EPOM_134_F10C",
-    "EPOM_230_FinA10C",
     "EPOM_133_F10A",
     "EPOM_229_FinA10A",
-    "EPOM_088_A10G",
-    "EPOM_280_AinF10G",
+    "EPOM_134_F10C",
+    "EPOM_230_FinA10C",
     "EPOM_087_A10E",
-    "EPOM_183_AF10E"
+    "EPOM_183_AF10E",
+    "EPOM_088_A10G",
+    "EPOM_280_AinF10G"
 )
 
 # Clade 4 strains - MCO457 strain
@@ -78,6 +78,14 @@ canor_strains <- c(
     c3_strains,
     c4_strains,
     pb_strains
+)
+
+# Hybrid strains
+canor_hybird_strains <- c(
+    c1_strains,
+    c2_strains,
+    c3_strains,
+    c4_strains
 )
 
 # T0 strains 

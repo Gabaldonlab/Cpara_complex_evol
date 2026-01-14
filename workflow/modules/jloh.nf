@@ -55,11 +55,11 @@ process PARSE_JLOHSTATS{
     # Check if values are "nan" and replace them with 0
     [ "\$hetsnp" = "nan" ] && hetsnp=0
     [ "\$homsnp" = "nan" ] && homsnp=0
-    [ ${sample_id} = "EPOM_088_A10G"] && homsnp=5
-    [ ${sample_id} = "EPOM_133_F10A"] && homsnp=5
-    [ ${sample_id} = "EPOM_183_AF10E"] && homsnp=5
-    [ ${sample_id} = "EPOM_229_FinA10A"] && homsnp=5
-    [ ${sample_id} = "EPOM_280_AinF10G"] && homsnp=5
+    [ "${sample_id}" = "EPOM_088_A10G" ] && homsnp=5
+    [ "${sample_id}" = "EPOM_133_F10A" ] && homsnp=5
+    [ "${sample_id}" = "EPOM_183_AF10E" ] && homsnp=5
+    [ "${sample_id}" = "EPOM_229_FinA10A" ] && homsnp=5
+    [ "${sample_id}" = "EPOM_280_AinF10G" ] && homsnp=5
     echo "Finished PARSE_JLOHSTATS" `date +%H-%M-%S`
     """
 }

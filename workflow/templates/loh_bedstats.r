@@ -2,7 +2,7 @@
 library(ggpubr)
 library(tidyverse)
 library(data.table)
-
+library(rstatix)
 # Load metadata
 metadata <- read.table("data/metadata/estrain_metadata_workflow.tsv",
     sep = "\t",
@@ -78,13 +78,40 @@ bedstats_all %>% filter(condition != "Y") %>% nrow()
 bedstats_all %>% filter(condition == "Y") %>% pull(ivls_frac_chrom) %>% mean()
 bedstats_all %>% filter(condition == "Y") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition == "Y") %>% nrow()
-# Average LOH in per speices
+# Average LOH in per species
 bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% pull(ivls_frac_chrom) %>% mean()
 bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition != "Y", reference == "CANOR_CO90125_mit_MCO471") %>% nrow()
 bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% pull(ivls_frac_chrom) %>% mean()
 bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% pull(ivls_frac_chrom) %>% sd()
 bedstats_all %>% filter(condition != "Y", reference == "CANME_BP57_mit_BP57") %>% nrow()
-# Test
-wilcox.test(ivls_frac_chrom ~ evolved, bedstats_all)
-wilcox.test(ivls_frac_chrom ~ reference, bedstats_all %>% filter(evolved))
+# Normality
+shapiro.test(bedstats_all %>% filter(evolved) %>% pull(ivls_frac_chrom))
+shapiro.test(bedstats_all %>% filter(!evolved) %>% pull(ivls_frac_chrom))
+# Test YPD vs. evolved
+bedstats_all %>% group_by(evolved) %>%
+	summarise(n = n(),
+	mean = round(mean(ivls_frac_chrom), 3),
+	iqr = round(IQR(ivls_frac_chrom), 3))
+wilcox.test(ivls_frac_chrom ~ evolved,
+    bedstats_all,
+    conf.int = T)
+wilcox_effsize(
+    bedstats_all %>% ungroup(),
+    ivls_frac_chrom ~ evolved
+)
+
+cat(paste(rep("_", 30)))
+# Test Ortho vs. Meta
+ortho_vs_meta <- bedstats_all %>% filter(evolved)
+ortho_vs_meta %>% group_by(reference) %>% 
+	summarise(n = n(),
+	mean = round(mean(ivls_frac_chrom), 3),
+	iqr = round(IQR(ivls_frac_chrom), 3))
+wilcox.test(ivls_frac_chrom ~ reference,
+    ortho_vs_meta,
+    conf.int = T)
+wilcox_effsize(
+    ortho_vs_meta %>%  ungroup(),
+    ivls_frac_chrom ~ reference
+)
