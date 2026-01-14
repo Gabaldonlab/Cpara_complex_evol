@@ -1,6 +1,4 @@
-# EPOM
-
-## Code for the project on Evolution of Candida Parapsilosis, Orthopsilosis and Metapsilosis
+# Code for the project on Evolution of Candida parapsilosis, orthopsilosis and metapsilosis
 
 This repository includes the code used for the analyses of
 - Candida parapsilosis:
