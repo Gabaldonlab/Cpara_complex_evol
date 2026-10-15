@@ -1,4 +1,4 @@
-# make_sv_cov_panels
+# General information
 
 Coverage plots and a coverage-shift test for structural variants (SVs) that differ
 between a target sample and background samples.

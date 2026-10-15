@@ -1,28 +1,27 @@
-# Cpara_complex_evol
+**General information**
 
-Code and files for
+This repository contains the code and resources for the analysis of structural rearrangements, copy number variants and aneuploidies described in our paper
+
 > **Reversible haploidisation and convergent genomic routes to antifungal resistance in the *Candida parapsilosis* species complex**
 >
 > Juan Carlos Nunez-Rodriguez†, Vladislav Biriukov†, Álvaro Redondo-Río†, Mrinalini Parmar, Timothy James Nickels, Miquel Àngel Schikora-Tamarit, Islam Ahaik, Valentina del Olmo, Toni Gabaldón\*
 >
 > † These authors contributed equally. \* Corresponding author.
 
-This repository contains the methods resources for the analysis of structural
-rearrangements in the *Candida parapsilosis* species complex: *C. parapsilosis*,
-*C. orthopsilosis* and *C. metapsilosis*.
-
 ## Repository structure
 
 ```
 Cpara_complex_evol/
 ├── README.md
-└── Methods_Analysis_of_structural_rearrangements/
-    ├── SV_parameters/                        # SV calling parameter files per species
-    │   ├── <species>_sv_calling_parameters.json          # selected configuration (used in the study)
-    │   ├── <species>_sv_calling_parameters_strict.json   # stringent configuration (benchmarked, rejected)
-    │   └── SV_analyze_parameters_heatmaps/   # benchmark results on simulated genomes
-    ├── repeats/                              # filtered repeat annotations per species
-    └── SV_validation_script/                 # coverage-based curation of differential SVs
+├── Methods_Analysis_of_structural_rearrangements/
+│   ├── SV_parameters/                        # SV calling parameter files per species
+│   │   ├── <species>_sv_calling_parameters.json          # selected configuration (used in the study)
+│   │   ├── <species>_sv_calling_parameters_strict.json   # stringent configuration (benchmarked, rejected)
+│   │   └── SV_analyze_parameters_heatmaps/   # benchmark results on simulated genomes
+│   ├── repeats/                              # filtered repeat annotations per species
+│   └── SV_validation_script/                 # coverage-based curation of differential SVs
+└── Methods_Detection_of_copy_number_variants_and_aneuploidies/
+    └── <sample>_aneuploidies.bed             # manually curated aneuploidies per sample
 ```
 
 ## Contents
@@ -66,6 +65,11 @@ among differential SV calls. See
 [`SV_validation_script/README.md`](Methods_Analysis_of_structural_rearrangements/SV_validation_script/README.md)
 for requirements, usage, method and outputs. The conda environment is provided in
 `SVanalysis_env.yaml`.
+
+### `Methods_Detection_of_copy_number_variants_and_aneuploidies/`
+
+Aneuploidies defined for each sample (`<sample>_aneuploidies.bed`), one file per
+sample in which aneuploidies were detected.
 
 ## Data availability
 
