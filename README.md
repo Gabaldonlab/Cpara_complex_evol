@@ -1,4 +1,4 @@
-**General information**
+# General information
 
 This repository contains the code and resources for the analysis of structural rearrangements, copy number variants and aneuploidies described in our paper
 
