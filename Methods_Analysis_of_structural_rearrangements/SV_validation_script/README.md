@@ -37,7 +37,7 @@ conda activate SVanalysis_env
 ## Usage
 
 ```bash
-python make_sv_cov_panels.py \
+python SVs_validation.py \
     --sv_table SVs_changing.tab \
     --paths_table paths.tsv \
     --outdir sv_coverage_out \
@@ -75,16 +75,15 @@ optionally capped by `intra_max_flank_bp`. Inter-chromosomal SVs get one block o
 ± `inter_flank_bp` around each breakend. Blocks are clamped to contig ends and split
 into `bins_per_block` equal bins.
 
-**Normalization.** Bin depth is divided by the sample's genome-wide mean depth
-(mosdepth `--fast-mode`, which skips mate-overlap correction and ignores CIGAR
-deletions). The meaning of a given value depends on ploidy: in a haploid genome,
+**Normalization.** Bin depth is divided by the sample's genome-wide mean depth.
+The meaning of a given value depends on ploidy: in a haploid genome,
 2 indicates one extra copy; in a diploid, 1.5.
 
 **Test.** For each bin, log2(target / median of backgrounds) is computed; with no
 background samples, the target is compared with 1. The effect is
 median(event bins) − median(flank bins). Flank bins are taken next to the event,
 skipping `flank_gap_bins` on each side, up to as many as there are event bins.
-Significance comes from an exact two-sided test over all `n − 1` non-identity
+Significance is calculated with exact two-sided test over all `n − 1` non-identity
 circular shifts of the bin series, with event and flank masks held fixed:
 
     p = (number of shifts with |effect| ≥ |observed| + 1) / n
