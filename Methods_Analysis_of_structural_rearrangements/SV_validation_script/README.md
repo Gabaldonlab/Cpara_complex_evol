@@ -44,7 +44,7 @@ python SVs_validation.py \
     --threads 4
 ```
 
-Run `python make_sv_cov_panels.py --help` for all options and defaults.
+Run `python SVs_validation.py --help` for all options and defaults.
 
 ## Inputs
 
